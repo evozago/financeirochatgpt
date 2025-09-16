@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { findById, fromTable } from "../../services/api";
+import { findById, fromTable, supabase } from "../../services/api";
 
 type Conta = {
   id: number;
@@ -29,26 +29,40 @@ export default function ContaDetalhe() {
   const [parcelas, setParcelas] = useState<Parcela[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        setLoading(true);
-        const c = await findById<Conta>("contas_pagar_corporativas", id!);
-        setConta(c);
-        const p = await fromTable<Parcela>(
-          "parcelas_conta_pagar",
-          "*",
-          (q: any) => q.eq("conta_pagar_id", id).order("num_parcela", {ascending:true})
-        );
-        setParcelas(p);
-      } catch (e: any) {
-        alert("Erro ao carregar: " + e.message);
-      } finally {
-        setLoading(false);
-      }
+  async function carregarDados() {
+    try {
+      setLoading(true);
+      const c = await findById<Conta>("contas_pagar_corporativas", id!);
+      setConta(c);
+      const p = await fromTable<Parcela>(
+        "parcelas_conta_pagar",
+        "*",
+        (q: any) => q.eq("conta_pagar_id", id).order("num_parcela", { ascending: true })
+      );
+      setParcelas(p);
+    } catch (e: any) {
+      alert("Erro ao carregar: " + e.message);
+    } finally {
+      setLoading(false);
     }
-    if (id) load();
+  }
+
+  useEffect(() => {
+    if (id) carregarDados();
   }, [id]);
+
+  async function marcarPago(parcelaId: number) {
+    const { error } = await supabase
+      .from("parcelas_conta_pagar")
+      .update({ status: "pago", pago_em: new Date().toISOString() })
+      .eq("id", parcelaId);
+
+    if (error) {
+      alert("Erro ao marcar como pago: " + error.message);
+    } else {
+      await carregarDados();
+    }
+  }
 
   return (
     <div style={{ padding: 24, fontFamily: "system-ui,-apple-system, Segoe UI, Roboto", maxWidth: 1100, margin: "0 auto" }}>
@@ -84,6 +98,7 @@ export default function ContaDetalhe() {
                   <th style={th}>Valor</th>
                   <th style={th}>Status</th>
                   <th style={th}>Pago em</th>
+                  <th style={th}></th>
                 </tr>
               </thead>
               <tbody>
@@ -94,10 +109,20 @@ export default function ContaDetalhe() {
                     <td style={td}>{Number(p.valor_parcela).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</td>
                     <td style={td}>{p.status}</td>
                     <td style={td}>{p.pago_em ?? "-"}</td>
+                    <td style={td}>
+                      {p.status !== "pago" && (
+                        <button
+                          onClick={() => marcarPago(p.id)}
+                          style={{ padding: "6px 12px", borderRadius: 6, border: "none", background: "green", color: "white", cursor: "pointer" }}
+                        >
+                          Marcar Pago
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
                 {parcelas.length === 0 &&
-                  <tr><td colSpan={5} style={{ padding: 16, textAlign: "center", color: "#777" }}>Sem parcelas</td></tr>}
+                  <tr><td colSpan={6} style={{ padding: 16, textAlign: "center", color: "#777" }}>Sem parcelas</td></tr>}
               </tbody>
             </table>
           </div>
@@ -106,5 +131,6 @@ export default function ContaDetalhe() {
     </div>
   );
 }
+
 const th: React.CSSProperties = { textAlign: "left", padding: 10, borderBottom: "1px solid #eee", fontWeight: 600, fontSize: 13 };
 const td: React.CSSProperties = { padding: 10, borderBottom: "1px solid #f5f5f5", fontSize: 14 };
