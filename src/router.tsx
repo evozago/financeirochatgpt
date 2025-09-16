@@ -6,16 +6,18 @@ import ListarEntidades from "./pages/entidades/ListarEntidades";
 import EditarEntidade from "./pages/entidades/EditarEntidade";
 import Protected from "./routes/Protected";
 
-// novas páginas (esqueletos que te passei)
+// AP (lista, detalhe, nova)
 import ContasLista from "./pages/financeiro/ContasLista";
 import ContaDetalhe from "./pages/financeiro/ContaDetalhe";
-import RecorrentesList from "./pages/recorrentes/RecorrentesList";
-import ImportarNFe from "./pages/nfe/ImportarNFe";
-import ConciliarNFe from "./pages/nfe/ConciliarNFe";
+import ContaNova from "./pages/financeiro/ContaNova";
 
-/* define rotas públicas e protegidas; cada “element” deve ser um elemento React */
+// (opcionais, quando quiser ativar)
+// import RecorrentesList from "./pages/recorrentes/RecorrentesList";
+// import ImportarNFe from "./pages/nfe/ImportarNFe";
+// import ConciliarNFe from "./pages/nfe/ConciliarNFe";
+
 export const router = createBrowserRouter([
-  // rota pública
+  // pública
   { path: "/login", element: <Login /> },
 
   // ENTIDADES
@@ -52,12 +54,20 @@ export const router = createBrowserRouter([
     ),
   },
 
-  // CONTAS A PAGAR (AP)
+  // CONTAS A PAGAR
   {
     path: "/financeiro/contas",
     element: (
       <Protected>
         <ContasLista />
+      </Protected>
+    ),
+  },
+  {
+    path: "/financeiro/contas/nova",
+    element: (
+      <Protected>
+        <ContaNova />
       </Protected>
     ),
   },
@@ -70,31 +80,8 @@ export const router = createBrowserRouter([
     ),
   },
 
-  // RECORRENTES
-  {
-    path: "/recorrentes",
-    element: (
-      <Protected>
-        <RecorrentesList />
-      </Protected>
-    ),
-  },
-
-  // NFe
-  {
-    path: "/nfe/importar",
-    element: (
-      <Protected>
-        <ImportarNFe />
-      </Protected>
-    ),
-  },
-  {
-    path: "/nfe/conciliar",
-    element: (
-      <Protected>
-        <ConciliarNFe />
-      </Protected>
-    ),
-  },
+  // Ative quando quiser:
+  // { path: "/recorrentes", element: <Protected><RecorrentesList /></Protected> },
+  // { path: "/nfe/importar", element: <Protected><ImportarNFe /></Protected> },
+  // { path: "/nfe/conciliar", element: <Protected><ConciliarNFe /></Protected> },
 ]);
