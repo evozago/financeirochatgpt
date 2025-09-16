@@ -1,4 +1,19 @@
-import { createClient } from "@supabase/supabase-js";
-const url = import.meta.env.VITE_SUPABASE_URL!;
-const anon = import.meta.env.VITE_SUPABASE_ANON_KEY!;
-export const supabase = createClient(url, anon);
+import { supabase } from "./supabaseClient";
+// ...
+const onSubmit = async (data: EntidadeForm) => {
+  const docDigits = onlyDigits(data.documento || "");
+  const payload = {
+    nome: data.nome.trim(),
+    tipo_pessoa: data.tipo_pessoa,
+    documento: docDigits || null,
+    ativo: true,
+  };
+
+  const { error } = await supabase.from("entidades").insert(payload);
+  if (error) {
+    alert(`Erro ao salvar: ${error.message}`);
+    return;
+  }
+  alert("Entidade salva com sucesso!");
+  reset();
+};
