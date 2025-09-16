@@ -1,5 +1,5 @@
 -- financeirolb: unicidade (CPF/CNPJ), índices úteis e RLS básico
--- v1.1 - 2025-09-16 (fix: remover DO $$ com $$ interno)
+-- v1.2 - 2025-09-16 (fix: is_admin() sem dependência obrigatória de user_organizacoes)
 
 BEGIN;
 
@@ -25,17 +25,50 @@ END $$;
 ALTER TABLE IF EXISTS public.entidades ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.entidade_papel ENABLE ROW LEVEL SECURITY;
 
--- Função is_admin(): usar OR REPLACE (idempotente), sem DO $$
+-- Função is_admin():
+--  1) tenta ler role do JWT (user_metadata.role ou app_metadata.role)
+--  2) se existir a tabela user_organizacoes, também aceita roles nela
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS boolean
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 AS $fn$
-  select exists (
-    select 1 from public.user_organizacoes uo
-    where uo.user_id = auth.uid()
-      and lower(coalesce(uo.role,'')) in ('admin','owner','superadmin')
-  )
+DECLARE
+  claims jsonb := coalesce(current_setting('request.jwt.claims', true)::jsonb, '{}'::jsonb);
+  role_claim text := lower(coalesce(
+    claims->'user_metadata'->>'role',
+    claims->'app_metadata'->>'role',
+    ''
+  ));
+  has_table boolean;
+  is_tbl_admin boolean := false;
+BEGIN
+  -- 1) JWT: admin?
+  IF role_claim IN ('admin','owner','superadmin') THEN
+    RETURN true;
+  END IF;
+
+  -- 2) Tabela user_organizacoes existe?
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema='public' AND table_name='user_organizacoes'
+  ) INTO has_table;
+
+  IF has_table THEN
+    SELECT EXISTS (
+      SELECT 1
+      FROM public.user_organizacoes uo
+      WHERE uo.user_id = auth.uid()
+        AND lower(coalesce(uo.role,'')) IN ('admin','owner','superadmin')
+    ) INTO is_tbl_admin;
+
+    IF is_tbl_admin THEN
+      RETURN true;
+    END IF;
+  END IF;
+
+  RETURN false;
+END
 $fn$;
 
 -- Policies (SELECT para autenticados; alterações só admin)
