@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/main.tsx","./src/supabaseClient.ts","./src/vite-env.d.ts","./src/components/EntityDocumentField.tsx","./src/pages/entidades/NovaEntidade.tsx","./src/utils/br-doc.ts"],"errors":true,"version":"5.8.3"}
