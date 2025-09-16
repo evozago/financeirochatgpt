@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import EntityDocumentField from "./components/EntityDocumentField";
 import { onlyDigits } from "./utils/br-doc";
-import { supabase } from "./supabaseClient";
+import supabase from "./supabaseClient";
 
 type EntidadeForm = {
   nome: string;
