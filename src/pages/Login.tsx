@@ -1,51 +1,29 @@
 import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { signIn } from "../services/auth";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "../supabaseClient";
 
 export default function Login() {
   const [email, setEmail] = useState("");
-  const [pass, setPass] = useState("");
-  const [loading, setLoading] = useState(false);
-  const nav = useNavigate();
-  const loc = useLocation() as any;
-  const redirectTo = loc.state?.from || "/";
+  const [senha, setSenha] = useState("");
+  const navigate = useNavigate();
 
-  async function onSubmit(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    const { error } = await signIn(email.trim(), pass);
-    setLoading(false);
-    if (error) return alert("Falha no login: " + error.message);
-    nav(redirectTo, { replace: true });
+    const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+    if (error) {
+      alert(`Erro ao entrar: ${error.message}`);
+    } else {
+      navigate("/entidades");
+    }
   }
 
   return (
-    <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto" }}>
-      <form onSubmit={onSubmit} style={{ width: 360, display: "grid", gap: 12 }}>
-        <h1>Entrar</h1>
-        <input
-          placeholder="Email"
-          type="email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10 }}
-          required
-        />
-        <input
-          placeholder="Senha"
-          type="password"
-          value={pass}
-          onChange={e => setPass(e.target.value)}
-          style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10 }}
-          required
-        />
-        <button disabled={loading} style={{ background: "black", color: "white", borderRadius: 8, padding: 10 }}>
-          {loading ? "Entrando..." : "Entrar"}
-        </button>
-        <small style={{ color: "#6b7280" }}>
-          Use um usuário existente do Supabase Auth (Settings → Authentication → Users)
-        </small>
-      </form>
-    </div>
+    <form onSubmit={handleLogin}>
+      <h1>Entrar</h1>
+      <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+      <input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} />
+      <button>Entrar</button>
+      <p>Use um usuário existente do Supabase (Settings → Authentication → Users)</p>
+    </form>
   );
 }
