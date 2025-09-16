@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../../supabaseClient";
 import { useNavigate } from "react-router-dom";
+import { fromTable } from "../../services/api";
 
 type Conta = {
   id: number;
@@ -19,17 +19,20 @@ export default function ContasLista() {
   const nav = useNavigate();
 
   async function load() {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("contas_pagar_corporativas")
-      .select("*")
-      .order("id", { ascending: false })
-      .limit(200);
-    if (error) alert(error.message);
-    setRows(data || []);
-    setLoading(false);
+    try {
+      setLoading(true);
+      const data = await fromTable<Conta>(
+        "contas_pagar_corporativas",
+        "*",
+        (q: any) => q.order("id", { ascending: false }).limit(200)
+      );
+      setRows(data);
+    } catch (e: any) {
+      alert("Erro ao carregar: " + e.message);
+    } finally {
+      setLoading(false);
+    }
   }
-
   useEffect(() => { load(); }, []);
 
   const filtered = useMemo(() => {
@@ -42,8 +45,9 @@ export default function ContasLista() {
   }, [rows, q]);
 
   return (
-    <div style={{ padding: 24, fontFamily: "system-ui,-apple-system, Segoe UI, Roboto" }}>
+    <div style={{ padding: 24, fontFamily: "system-ui,-apple-system, Segoe UI, Roboto", maxWidth: 1200, margin: "0 auto" }}>
       <h1>Contas a Pagar</h1>
+
       <div style={{ display: "flex", gap: 12, margin: "12px 0" }}>
         <input
           placeholder="Buscar por descrição/status"
@@ -52,6 +56,7 @@ export default function ContasLista() {
           style={{ flex: 1, border: "1px solid #ddd", borderRadius: 8, padding: 10 }}
         />
       </div>
+
       {loading ? <p>Carregando…</p> : (
         <div style={{ overflowX: "auto", border: "1px solid #eee", borderRadius: 8 }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -74,13 +79,16 @@ export default function ContasLista() {
                   <td style={td}>{r.descricao}</td>
                   <td style={td}>{r.status}</td>
                   <td style={td}>{r.dt_vencimento ?? "-"}</td>
-                  <td style={td}>{Number(r.valor_total).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</td>
+                  <td style={td}>
+                    {Number(r.valor_total).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}
+                  </td>
                   <td style={tdRight}>
                     <button onClick={() => nav(`/financeiro/contas/${r.id}`)} style={btn}>Detalhe</button>
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan={7} style={{ padding: 16, textAlign: "center", color: "#777" }}>Nada encontrado</td></tr>}
+              {filtered.length === 0 &&
+                <tr><td colSpan={7} style={{ padding: 16, textAlign: "center", color: "#777" }}>Nada encontrado</td></tr>}
             </tbody>
           </table>
         </div>
@@ -88,7 +96,6 @@ export default function ContasLista() {
     </div>
   );
 }
-
 const th: React.CSSProperties = { textAlign: "left", padding: 10, borderBottom: "1px solid #eee", fontWeight: 600, fontSize: 13 };
 const td: React.CSSProperties = { padding: 10, borderBottom: "1px solid #f5f5f5", fontSize: 14 };
 const tdRight: React.CSSProperties = { ...td, textAlign: "right", whiteSpace: "nowrap" };
