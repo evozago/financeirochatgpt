@@ -1,15 +1,35 @@
 import { createBrowserRouter } from "react-router-dom";
+
+// públicas
 import Login from "./pages/Login";
+
+// ENTIDADES
 import ListarEntidades from "./pages/entidades/ListarEntidades";
 import EditarEntidade from "./pages/entidades/EditarEntidade";
+
+// AP (Contas a Pagar)
 import ContasLista from "./pages/financeiro/ContasLista";
 import ContaDetalhe from "./pages/financeiro/ContaDetalhe";
+import ContaNova from "./pages/financeiro/ContaNova";
+
+// guard
 import Protected from "./routes/Protected";
 
 export const router = createBrowserRouter([
+  // pública
   { path: "/login", element: <Login /> },
 
-  // Entidades
+  // redirecionamos a home para ENTIDADES (ou troque para AP se preferir)
+  {
+    path: "/",
+    element: (
+      <Protected>
+        <ListarEntidades />
+      </Protected>
+    ),
+  },
+
+  // ENTIDADES
   {
     path: "/entidades",
     element: (
@@ -35,7 +55,7 @@ export const router = createBrowserRouter([
     ),
   },
 
-  // Contas a Pagar
+  // CONTAS A PAGAR
   {
     path: "/financeiro/contas",
     element: (
@@ -48,7 +68,7 @@ export const router = createBrowserRouter([
     path: "/financeiro/contas/nova",
     element: (
       <Protected>
-        <ContaDetalhe /> {/* detalhe vazio → cadastro nova */}
+        <ContaNova />
       </Protected>
     ),
   },
