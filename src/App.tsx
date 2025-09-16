@@ -1,7 +1,7 @@
+cat > src/App.tsx <<'TSX'
 import NovaEntidade from "./pages/entidades/NovaEntidade";
 
-function App() {
+export default function App() {
   return <NovaEntidade />;
 }
-
-export default App;
+TSX
