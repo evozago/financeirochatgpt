@@ -15,10 +15,7 @@ export default function Login() {
     setLoading(true);
     const { error } = await signIn(email.trim(), pass);
     setLoading(false);
-    if (error) {
-      alert("Falha no login: " + error.message);
-      return;
-    }
+    if (error) return alert("Falha no login: " + error.message);
     nav(redirectTo, { replace: true });
   }
 
