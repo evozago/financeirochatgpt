@@ -1,0 +1,3 @@
+tipo_pessoa;nome;documento;email;telefone;ativo
+JURIDICA;Lui Bambini Matriz Ltda;12345678000199;financeiro@luibambini.com;11999990000;TRUE
+FISICA;Maria Vendedora;12345678901;maria.vendas@luibambini.com;11988887777;TRUE
