@@ -1,5 +1,5 @@
 -- financeirolb: recorrentes (cadastro + função + agendamento)
--- v1.0 - 2025-09-15
+-- v1.1 - 2025-09-16 (fix: usar cron.schedule com schema correto)
 
 BEGIN;
 
@@ -39,7 +39,6 @@ BEGIN
   LOOP
     venc := make_date(pano, pmes, rec.dia_vencimento);
 
-    -- cria título (cabeçalho) se existir a tabela; caso não exista, apenas loga
     IF EXISTS (
       SELECT 1 FROM information_schema.tables
       WHERE table_schema='public' AND table_name='contas_pagar_corporativas'
@@ -48,7 +47,6 @@ BEGIN
       VALUES (rec.filial_id, rec.credor_id, concat(rec.descricao, ' ', to_char(venc, 'MM/YYYY')), rec.valor, rec.categoria_id, venc)
       RETURNING id INTO nova_conta_id;
 
-      -- cria parcela (se existir a tabela)
       IF EXISTS (
         SELECT 1 FROM information_schema.tables
         WHERE table_schema='public' AND table_name='parcelas_conta_pagar'
@@ -66,12 +64,18 @@ $$;
 
 COMMIT;
 
--- Extensão de agendamento (Supabase usa schema 'extensions')
-CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA extensions;
+-- Habilitar pg_cron no schema padrão "cron"
+CREATE EXTENSION IF NOT EXISTS pg_cron;
 
--- Agenda todo dia 1 às 00:10
-SELECT extensions.cron.schedule(
-  'financeirolb_recorrentes_mensal',
-  '10 0 1 * *',
-  $$ SELECT public.gerar_recorrentes(EXTRACT(year FROM current_date)::int, EXTRACT(month FROM current_date)::int) $$
-);
+-- Criar o job 1x/mês caso ainda não exista
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'financeirolb_recorrentes_mensal') THEN
+    PERFORM cron.schedule(
+      'financeirolb_recorrentes_mensal',
+      '10 0 1 * *',
+      $$ SELECT public.gerar_recorrentes(EXTRACT(year FROM current_date)::int,
+                                         EXTRACT(month FROM current_date)::int) $$
+    );
+  END IF;
+END $$;
