@@ -1,35 +1,41 @@
-import { ReactNode, useEffect, useState } from "react";
-import { Navigate, useLocation } from "react-router-dom";
-import { getSession, onAuthChange } from "../services/auth";
+import { createBrowserRouter } from "react-router-dom";
+import Login from "./pages/Login";
+import ListarEntidades from "./pages/entidades/ListarEntidades";
+import EditarEntidade from "./pages/entidades/EditarEntidade";
+import Protected from "./routes/Protected";
 
-export default function Protected({ children }: { children: ReactNode }) {
-  const [loading, setLoading] = useState(true);
-  const [isAuthed, setIsAuthed] = useState(false);
-  const loc = useLocation();
-
-  useEffect(() => {
-    let active = true;
-
-    async function boot() {
-      const s = await getSession();
-      if (!active) return;
-      setIsAuthed(!!s);
-      setLoading(false);
-    }
-
-    const { data: sub } = onAuthChange(() => {
-      getSession().then((s) => setIsAuthed(!!s));
-    });
-
-    boot();
-    return () => {
-      active = false;
-      sub.subscription?.unsubscribe?.();
-    };
-  }, []);
-
-  if (loading) return <div style={{ padding: 24 }}>Carregando…</div>;
-  if (!isAuthed) return <Navigate to="/login" replace state={{ from: loc.pathname }} />;
-
-  return <>{children}</>;
-}
+export const router = createBrowserRouter([
+  { path: "/login", element: <Login /> },
+  {
+    path: "/",
+    element: (
+      <Protected>
+        <ListarEntidades />
+      </Protected>
+    ),
+  },
+  {
+    path: "/entidades",
+    element: (
+      <Protected>
+        <ListarEntidades />
+      </Protected>
+    ),
+  },
+  {
+    path: "/entidades/nova",
+    element: (
+      <Protected>
+        <EditarEntidade mode="create" />
+      </Protected>
+    ),
+  },
+  {
+    path: "/entidades/:id",
+    element: (
+      <Protected>
+        <EditarEntidade mode="edit" />
+      </Protected>
+    ),
+  },
+]);
