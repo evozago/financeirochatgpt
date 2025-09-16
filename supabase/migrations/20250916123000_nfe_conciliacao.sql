@@ -1,5 +1,5 @@
 -- NFe ↔ Contas/Parcelas — conciliação e auditoria
--- v1.1 - 2025-09-16 (idempotente; cria nfe_data se não existir)
+-- v1.2 - 2025-09-16 (idempotente; cria nfe_data se não existir; view condicional)
 
 BEGIN;
 
@@ -20,7 +20,7 @@ BEGIN
 END
 $$;
 
--- 0.1) Unique em chave (idempotente)
+-- 0.1) Unique em chave
 CREATE UNIQUE INDEX IF NOT EXISTS uq_nfe_data_chave ON public.nfe_data(chave_acesso);
 
 -- 1) Tabela de vínculo NFe ↔ Parcela
@@ -54,23 +54,49 @@ FROM public.nfe_data n
 LEFT JOIN public.nfe_parcela_link l ON l.chave_acesso = n.chave_acesso
 WHERE l.id IS NULL;
 
-CREATE OR REPLACE VIEW public.vw_nfe_conciliada AS
-WITH soma AS (
-  SELECT l.chave_acesso, sum(p.valor_parcela) AS total_parcelas, count(*) AS qtd_parcelas
-  FROM public.nfe_parcela_link l
-  JOIN public.parcelas_conta_pagar p ON p.id = l.parcela_id
-  GROUP BY l.chave_acesso
-)
-SELECT 
-  n.chave_acesso,
-  n.emitente,
-  n.destinatario,
-  COALESCE( (n.valores->>'total')::numeric, NULL ) AS total_nfe,
-  s.total_parcelas,
-  s.qtd_parcelas,
-  (COALESCE((n.valores->>'total')::numeric, 0) - COALESCE(s.total_parcelas, 0)) AS diferenca
-FROM public.nfe_data n
-LEFT JOIN soma s ON s.chave_acesso = n.chave_acesso;
+-- 2.1) vw_nfe_conciliada: criar COMPLETA se parcelas_conta_pagar existir, senão criar LIGHT
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema='public' AND table_name='parcelas_conta_pagar'
+  ) THEN
+    EXECUTE $v$
+      CREATE OR REPLACE VIEW public.vw_nfe_conciliada AS
+      WITH soma AS (
+        SELECT l.chave_acesso, sum(p.valor_parcela) AS total_parcelas, count(*) AS qtd_parcelas
+        FROM public.nfe_parcela_link l
+        JOIN public.parcelas_conta_pagar p ON p.id = l.parcela_id
+        GROUP BY l.chave_acesso
+      )
+      SELECT 
+        n.chave_acesso,
+        n.emitente,
+        n.destinatario,
+        COALESCE((n.valores->>'total')::numeric, NULL) AS total_nfe,
+        s.total_parcelas,
+        s.qtd_parcelas,
+        (COALESCE((n.valores->>'total')::numeric, 0) - COALESCE(s.total_parcelas, 0)) AS diferenca
+      FROM public.nfe_data n
+      LEFT JOIN soma s ON s.chave_acesso = n.chave_acesso;
+    $v$;
+  ELSE
+    -- Versão LIGHT: não soma parcelas (colunas ficam NULL)
+    EXECUTE $v$
+      CREATE OR REPLACE VIEW public.vw_nfe_conciliada AS
+      SELECT 
+        n.chave_acesso,
+        n.emitente,
+        n.destinatario,
+        COALESCE((n.valores->>'total')::numeric, NULL) AS total_nfe,
+        NULL::numeric AS total_parcelas,
+        NULL::integer AS qtd_parcelas,
+        NULL::numeric AS diferenca
+      FROM public.nfe_data n;
+    $v$;
+  END IF;
+END
+$$;
 
 -- 3) Função: conciliar NFe
 CREATE OR REPLACE FUNCTION public.fn_conciliar_nfe(
