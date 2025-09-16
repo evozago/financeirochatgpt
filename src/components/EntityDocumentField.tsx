@@ -1,13 +1,13 @@
 import React, { useState } from "react";
-import { useController, Control } from "react-hook-form";
-import { onlyDigits, smartFormatCpfCnpj, validateCpfCnpjOrEmpty } from "../utils/br-doc";
+import { useController, type Control } from "react-hook-form";
+import { smartFormatCpfCnpj, validateCpfCnpjOrEmpty } from "../utils/br-doc";
 
 type Props = {
   control: Control<any>;
-  name?: string;          // campo do formulário (ex.: "documento")
-  required?: boolean;     // default false = pode ficar em branco
-  label?: string;         // default "CPF ou CNPJ"
-  placeholder?: string;   // default "CPF ou CNPJ"
+  name?: string;
+  required?: boolean;
+  label?: string;
+  placeholder?: string;
   disabled?: boolean;
 };
 
@@ -26,7 +26,7 @@ export default function EntityDocumentField({
       validate: (v: string) => {
         const { ok, type } = validateCpfCnpjOrEmpty(v ?? "");
         if (!required && type === "EMPTY") return true;
-        return ok || "Documento inválido para o tipo detectado";
+        return ok || "Documento inválido";
       },
     },
   });
@@ -34,37 +34,35 @@ export default function EntityDocumentField({
   const [touched, setTouched] = useState(false);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const raw = e.target.value;
-    const masked = smartFormatCpfCnpj(raw);
+    const masked = smartFormatCpfCnpj(e.target.value);
     field.onChange(masked);
   }
 
-  function handleBlur() {
-    setTouched(true);
-    // normaliza para só dígitos em um hidden? se quiser enviar “limpo”:
-    // const digits = onlyDigits(field.value);
-    // field.onChange(digits.length ? smartFormatCpfCnpj(digits) : "");
-    field.onBlur();
-  }
-
-  const error = fieldState.error?.message as string | undefined;
-
   return (
-    <div className="flex flex-col gap-1">
-      <label className="text-sm font-medium">{label}{!required && <span className="text-gray-500"> (opcional)</span>}</label>
+    <div style={{ display: "grid", gap: 6 }}>
+      <label style={{ fontSize: 14, fontWeight: 600 }}>
+        {label}
+        {!required && <span style={{ color: "#6b7280", fontWeight: 400 }}> (opcional)</span>}
+      </label>
       <input
         type="text"
         inputMode="numeric"
         autoComplete="off"
-        className={`border rounded px-3 py-2 ${error && touched ? "border-red-500" : "border-gray-300"}`}
+        style={{
+          border: `1px solid ${fieldState.error && touched ? "#ef4444" : "#d1d5db"}`,
+          borderRadius: 8,
+          padding: "10px 12px",
+        }}
         placeholder={placeholder}
         value={field.value ?? ""}
         onChange={handleChange}
-        onBlur={handleBlur}
+        onBlur={() => setTouched(true)}
         disabled={disabled}
       />
-      <small className={`h-4 ${error && touched ? "text-red-600" : "text-gray-500"}`}>
-        {error && touched ? error : "Digite CPF (11) ou CNPJ (14). Deixe em branco se não tiver."}
+      <small style={{ minHeight: 16, color: fieldState.error && touched ? "#dc2626" : "#6b7280" }}>
+        {fieldState.error && touched
+          ? (fieldState.error.message as string)
+          : "Digite CPF (11) ou CNPJ (14). Deixe em branco se não tiver."}
       </small>
     </div>
   );
