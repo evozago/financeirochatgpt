@@ -64,10 +64,46 @@ export default function ContaDetalhe() {
     }
   }
 
+  async function gerarParcelas() {
+    if (!conta) return;
+    const qtd = parseInt(prompt("Quantas parcelas deseja gerar? (ex: 3, 6, 12)") || "0", 10);
+    if (!qtd || qtd <= 0) return;
+
+    const valorParcela = Number((conta.valor_total / qtd).toFixed(2));
+    const inserts = [];
+
+    for (let i = 1; i <= qtd; i++) {
+      const venc = new Date();
+      venc.setMonth(venc.getMonth() + i); // cada mês
+      inserts.push({
+        conta_pagar_id: conta.id,
+        num_parcela: i,
+        data_vencimento: venc.toISOString().slice(0, 10),
+        valor_parcela: valorParcela,
+        status: "a_vencer",
+      });
+    }
+
+    const { error } = await supabase.from("parcelas_conta_pagar").insert(inserts);
+    if (error) {
+      alert("Erro ao gerar parcelas: " + error.message);
+    } else {
+      await carregarDados();
+    }
+  }
+
   return (
     <div style={{ padding: 24, fontFamily: "system-ui,-apple-system, Segoe UI, Roboto", maxWidth: 1100, margin: "0 auto" }}>
-      <div style={{ marginBottom: 12 }}>
+      <div style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <Link to="/financeiro/contas">← Voltar</Link>
+        {conta && (
+          <button
+            onClick={gerarParcelas}
+            style={{ padding: "6px 12px", borderRadius: 6, border: "none", background: "blue", color: "white", cursor: "pointer" }}
+          >
+            Gerar Parcelas
+          </button>
+        )}
       </div>
       <h1>Conta #{id}</h1>
 
