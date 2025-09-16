@@ -33,14 +33,13 @@ export default function ContaNova() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // validações simples
     const filialId = Number(f.filial_id);
     const total = Number(f.valor_total.replace(",", "."));
     const venc = f.dt_vencimento;
 
     if (!filialId || filialId <= 0) return alert("Informe uma filial válida (número).");
     if (!f.descricao.trim()) return alert("Informe a descrição.");
-    if (!total || total < 0) return alert("Informe o valor total (maior que zero).");
+    if (!total || total <= 0) return alert("Informe o valor total (maior que zero).");
     if (!venc) return alert("Informe o vencimento (yyyy-mm-dd).");
 
     setSaving(true);
@@ -68,15 +67,15 @@ export default function ContaNova() {
         const n = parseInt(f.qtdParcelas || "0", 10);
         if (!n || n <= 0) throw new Error("Quantidade de parcelas inválida.");
 
-        // divide valor; ajusta diferença na última
+        // base com 2 casas; ajusta diferença na última
         const base = Math.floor((total / n) * 100) / 100;
         const inserts: any[] = [];
-        let soma = 0;
+        let acumuladoCentavos = 0;
 
         for (let i = 1; i <= n; i++) {
           let valor = base;
-          if (i === n) valor = Math.round((total * 100 - soma) ) / 100; // último recebe ajuste
-          soma += Math.round(valor * 100);
+          if (i === n) valor = Math.round(total * 100 - acumuladoCentavos) / 100;
+          acumuladoCentavos += Math.round(valor * 100);
 
           const d = new Date(venc);
           d.setMonth(d.getMonth() + (i - 1));
@@ -115,48 +114,43 @@ export default function ContaNova() {
       <h1>Nova Conta</h1>
 
       <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
-        <div style={row}>
-          <label style={lbl}>Filial ID</label>
+        <Field label="Filial ID">
           <input
             style={inp}
             placeholder="ex.: 1"
             value={f.filial_id}
             onChange={(e) => onChange("filial_id", e.target.value)}
           />
-        </div>
+        </Field>
 
-        <div style={row}>
-          <label style={lbl}>Descrição</label>
+        <Field label="Descrição">
           <input
             style={inp}
             placeholder="ex.: Energia (Set/2025)"
             value={f.descricao}
             onChange={(e) => onChange("descricao", e.target.value)}
           />
-        </div>
+        </Field>
 
-        <div style={row}>
-          <label style={lbl}>Valor Total</label>
+        <Field label="Valor Total">
           <input
             style={inp}
             placeholder="ex.: 1200.00"
             value={f.valor_total}
             onChange={(e) => onChange("valor_total", e.target.value)}
           />
-        </div>
+        </Field>
 
-        <div style={row}>
-          <label style={lbl}>Vencimento</label>
+        <Field label="Vencimento">
           <input
             type="date"
             style={inp}
             value={f.dt_vencimento}
             onChange={(e) => onChange("dt_vencimento", e.target.value)}
           />
-        </div>
+        </Field>
 
-        <div style={row}>
-          <label style={lbl}>Status</label>
+        <Field label="Status">
           <select
             style={inp}
             value={f.status}
@@ -167,17 +161,16 @@ export default function ContaNova() {
             <option value="paga">paga</option>
             <option value="cancelada">cancelada</option>
           </select>
-        </div>
+        </Field>
 
-        <div style={row}>
-          <label style={lbl}>Observações</label>
+        <Field label="Observações">
           <textarea
             style={{ ...inp, height: 90, resize: "vertical" }}
             placeholder="Texto livre..."
             value={f.observacoes}
             onChange={(e) => onChange("observacoes", e.target.value)}
           />
-        </div>
+        </Field>
 
         <fieldset style={{ border: "1px solid #eee", borderRadius: 8, padding: 12 }}>
           <legend>Parcelas automáticas (opcional)</legend>
@@ -199,7 +192,7 @@ export default function ContaNova() {
                 onChange={(e) => onChange("qtdParcelas", e.target.value)}
               />
               <p style={{ color: "#666", marginTop: 8, fontSize: 13 }}>
-                O sistema divide o valor total igualmente. A última parcela recebe um ajuste de centavos se necessário.
+                O sistema divide o valor total igualmente. A última parcela recebe ajuste de centavos, se necessário.
               </p>
             </div>
           )}
@@ -225,6 +218,14 @@ export default function ContaNova() {
   );
 }
 
-const row: React.CSSProperties = { display: "grid", gap: 6 };
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: "grid", gap: 6 }}>
+      <label style={lbl}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
 const lbl: React.CSSProperties = { fontSize: 14, fontWeight: 600 };
 const inp: React.CSSProperties = { border: "1px solid #ddd", borderRadius: 8, padding: 10, fontSize: 14 };
