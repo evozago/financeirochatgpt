@@ -1,5 +1,5 @@
 -- financeirolb: unicidade (CPF/CNPJ), índices úteis e RLS básico
--- v1.0 - 2025-09-15
+-- v1.1 - 2025-09-16 (fix: remover DO $$ com $$ interno)
 
 BEGIN;
 
@@ -22,29 +22,21 @@ DO $$ BEGIN
 END $$;
 
 -- RLS básico (ajuste depois para organização/filial)
-ALTER TABLE public.entidades ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.entidade_papel ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.entidades ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.entidade_papel ENABLE ROW LEVEL SECURITY;
 
--- Função is_admin() (cria somente se não existir)
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 
-    FROM pg_proc p 
-    JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE p.proname = 'is_admin' AND n.nspname = 'public'
-  ) THEN
-    CREATE OR REPLACE FUNCTION public.is_admin()
-    RETURNS boolean
-    LANGUAGE sql STABLE
-    AS $$
-      select exists (
-        select 1 from public.user_organizacoes uo
-        where uo.user_id = auth.uid()
-          and lower(coalesce(uo.role,'')) in ('admin','owner','superadmin')
-      );
-    $$;
-  END IF;
-END $$;
+-- Função is_admin(): usar OR REPLACE (idempotente), sem DO $$
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+AS $fn$
+  select exists (
+    select 1 from public.user_organizacoes uo
+    where uo.user_id = auth.uid()
+      and lower(coalesce(uo.role,'')) in ('admin','owner','superadmin')
+  )
+$fn$;
 
 -- Policies (SELECT para autenticados; alterações só admin)
 DO $$ BEGIN
