@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../../supabaseClient";
 import { Link, useParams } from "react-router-dom";
+import { findById, fromTable } from "../../services/api";
 
 type Conta = {
   id: number;
@@ -27,64 +27,84 @@ export default function ContaDetalhe() {
   const { id } = useParams();
   const [conta, setConta] = useState<Conta | null>(null);
   const [parcelas, setParcelas] = useState<Parcela[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
-      const { data: c } = await supabase
-        .from("contas_pagar_corporativas")
-        .select("*").eq("id", id).single();
-      setConta(c || null);
-
-      const { data: p } = await supabase
-        .from("parcelas_conta_pagar")
-        .select("*").eq("conta_pagar_id", id).order("num_parcela",{ascending:true});
-      setParcelas(p || []);
+      try {
+        setLoading(true);
+        const c = await findById<Conta>("contas_pagar_corporativas", id!);
+        setConta(c);
+        const p = await fromTable<Parcela>(
+          "parcelas_conta_pagar",
+          "*",
+          (q: any) => q.eq("conta_pagar_id", id).order("num_parcela", {ascending:true})
+        );
+        setParcelas(p);
+      } catch (e: any) {
+        alert("Erro ao carregar: " + e.message);
+      } finally {
+        setLoading(false);
+      }
     }
-    load();
+    if (id) load();
   }, [id]);
 
   return (
-    <div style={{ padding: 24, fontFamily: "system-ui,-apple-system, Segoe UI, Roboto" }}>
+    <div style={{ padding: 24, fontFamily: "system-ui,-apple-system, Segoe UI, Roboto", maxWidth: 1100, margin: "0 auto" }}>
       <div style={{ marginBottom: 12 }}>
         <Link to="/financeiro/contas">← Voltar</Link>
       </div>
       <h1>Conta #{id}</h1>
-      {!conta ? <p>Carregando…</p> : (
+
+      {loading && <p>Carregando…</p>}
+      {!loading && !conta && <p>Conta não encontrada.</p>}
+
+      {conta && (
         <>
-          <p><b>Filial:</b> {conta.filial_id}</p>
-          <p><b>Descrição:</b> {conta.descricao}</p>
-          <p><b>Status:</b> {conta.status}</p>
-          <p><b>Vencimento:</b> {conta.dt_vencimento ?? "-"}</p>
-          <p><b>Valor Total:</b> {Number(conta.valor_total).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 16 }}>
+            <div><b>Filial:</b><br />{conta.filial_id}</div>
+            <div><b>Status:</b><br />{conta.status}</div>
+            <div><b>Vencimento:</b><br />{conta.dt_vencimento ?? "-"}</div>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <b>Descrição:</b><br />{conta.descricao}
+            </div>
+            <div><b>Valor Total:</b><br />
+              {Number(conta.valor_total).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}
+            </div>
+          </div>
+
           <h2>Parcelas</h2>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead style={{ background: "#fafafa" }}>
-              <tr>
-                <th style={th}>Parcela</th>
-                <th style={th}>Vencimento</th>
-                <th style={th}>Valor</th>
-                <th style={th}>Status</th>
-                <th style={th}>Pago em</th>
-              </tr>
-            </thead>
-            <tbody>
-              {parcelas.map(p => (
-                <tr key={p.id}>
-                  <td style={td}>{p.num_parcela}</td>
-                  <td style={td}>{p.data_vencimento}</td>
-                  <td style={td}>{Number(p.valor_parcela).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</td>
-                  <td style={td}>{p.status}</td>
-                  <td style={td}>{p.pago_em ?? "-"}</td>
+          <div style={{ overflowX: "auto", border: "1px solid #eee", borderRadius: 8 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead style={{ background: "#fafafa" }}>
+                <tr>
+                  <th style={th}>Parcela</th>
+                  <th style={th}>Vencimento</th>
+                  <th style={th}>Valor</th>
+                  <th style={th}>Status</th>
+                  <th style={th}>Pago em</th>
                 </tr>
-              ))}
-              {parcelas.length === 0 && <tr><td colSpan={5} style={{ padding: 16, textAlign: "center", color: "#777" }}>Sem parcelas</td></tr>}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {parcelas.map(p => (
+                  <tr key={p.id}>
+                    <td style={td}>{p.num_parcela}</td>
+                    <td style={td}>{p.data_vencimento}</td>
+                    <td style={td}>{Number(p.valor_parcela).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</td>
+                    <td style={td}>{p.status}</td>
+                    <td style={td}>{p.pago_em ?? "-"}</td>
+                  </tr>
+                ))}
+                {parcelas.length === 0 &&
+                  <tr><td colSpan={5} style={{ padding: 16, textAlign: "center", color: "#777" }}>Sem parcelas</td></tr>}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
     </div>
   );
 }
-
 const th: React.CSSProperties = { textAlign: "left", padding: 10, borderBottom: "1px solid #eee", fontWeight: 600, fontSize: 13 };
 const td: React.CSSProperties = { padding: 10, borderBottom: "1px solid #f5f5f5", fontSize: 14 };
