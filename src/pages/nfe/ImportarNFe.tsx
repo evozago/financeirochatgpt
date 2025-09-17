@@ -4,8 +4,10 @@ import { Link } from "react-router-dom";
 
 /**
  * ImportarNFe
- * - Lê um XML de NFe (layout nacional) localmente (FileReader + DOMParser)
- * - Extrai campos principais e upsert em public.nfe_data
+ * - Lê um XML de NFe localmente (FileReader + DOMParser)
+ * - Extrai: chave (44), número, série, modelo, data_emissao, emitente, destinatario, valor_total
+ * - Faz upload do XML no Storage 'nfe-xml' em xml/<chave>.xml (private)
+ * - Upsert em nfe_data (onConflict: chave_acesso)
  */
 export default function ImportarNFe() {
   const [file, setFile] = useState<File | null>(null);
@@ -29,61 +31,77 @@ export default function ImportarNFe() {
       const parser = new DOMParser();
       const xml = parser.parseFromString(xmlText, "text/xml");
 
-      // helpers
-      const get = (tag: string) => xml.getElementsByTagName(tag)[0]?.textContent || "";
-      const num = (tag: string) => Number((get(tag) || "0").replace(",", "."));
+      const get = (tag: string, ctx?: Element | Document) =>
+        (ctx ?? xml).getElementsByTagName(tag)[0]?.textContent || "";
+      const num = (tag: string, ctx?: Element | Document) =>
+        Number((get(tag, ctx) || "0").replace(",", "."));
       const safe = (s: string) => (s ?? "").trim();
 
-      // campos principais (layout NFe)
-      const chave = safe(get("chNFe")) || safe(get("Id")).replace("NFe", "");
-      if (!chave || chave.length !== 44) throw new Error("Não foi possível obter a chave de acesso (44 dígitos).");
+      // chave de acesso (44)
+      let chave = safe(get("chNFe"));
+      if (!chave) {
+        // alguns XML trazem no Id do infNFe: Id="NFe3519..."
+        const infNFe = xml.getElementsByTagName("infNFe")[0];
+        const id = infNFe?.getAttribute("Id") || "";
+        if (id?.startsWith("NFe")) chave = id.slice(3);
+      }
+      if (!chave || chave.length !== 44) throw new Error("Chave de acesso inválida (esperado 44 dígitos).");
 
-      const numero = safe(get("nNF"));
-      const serie = safe(get("serie"));
-      const modelo = safe(get("mod"));
-      const emissao = safe(get("dhEmi") || get("dEmi")); // dhEmi é ISO datetime; dEmi é date
-      const data_emissao = emissao ? emissao.slice(0, 10) : null;
+      // dados principais
+      const nfe = xml.getElementsByTagName("NFe")[0] || xml;
+      const ide = xml.getElementsByTagName("ide")[0] || xml;
+      const emit = xml.getElementsByTagName("emit")[0];
+      const dest = xml.getElementsByTagName("dest")[0];
 
-      // emitente/destinatário (razao social ou nome)
-      const emitente = safe(get("xNome")) || safe(xml.getElementsByTagName("emit")[0]?.getElementsByTagName("xNome")[0]?.textContent || "");
-      const destNode = xml.getElementsByTagName("dest")[0];
-      const destinatario = safe(destNode?.getElementsByTagName("xNome")[0]?.textContent || destNode?.getElementsByTagName("xFant")[0]?.textContent || "");
+      const numero = safe(get("nNF", ide));
+      const serie = safe(get("serie", ide));
+      const modelo = safe(get("mod", ide));
+      const dtEmi = safe(get("dhEmi", ide) || get("dEmi", ide));
+      const data_emissao = dtEmi ? dtEmi.slice(0, 10) : null;
 
-      // valores totais
-      const vNF = num("vNF");      // valor total da NFe
-      const vProd = num("vProd");  // valor produtos
-      const vDesc = num("vDesc");  // descontos
-      const vFrete = num("vFrete");
-      const vOutro = num("vOutro");
+      const emitente = safe(get("xNome", emit) || get("xFant", emit));
+      const destinatario = safe(get("xNome", dest) || get("xFant", dest));
 
-      // upsert em nfe_data
+      const vNF   = num("vNF", xml);     // total da NFe
+      const vProd = num("vProd", xml);
+      const vDesc = num("vDesc", xml);
+      const vFrete= num("vFrete", xml);
+      const vOutro= num("vOutro", xml);
+
+      // Upload do XML no Storage (nfe-xml/xml/<chave>.xml) — sobrescreve (upsert)
+      const xmlPath = `xml/${chave}.xml`;
+      const { error: upErr } = await supabase.storage.from("nfe-xml").upload(xmlPath, new Blob([xmlText], { type: "text/xml" }), {
+        upsert: true,
+        cacheControl: "60"
+      });
+      if (upErr && upErr.message && !upErr.message.includes("The resource already exists")) throw upErr;
+
+      // Upsert em nfe_data
       const payload = {
         chave_acesso: chave,
-        numero,
-        serie,
-        modelo,
+        emitente: emitente || null,
+        destinatario: destinatario || null,
+        numero: numero || null,
+        serie: serie || null,
+        modelo: modelo || null,
         data_emissao,
-        emitente,
-        destinatario,
         valor_total: vNF || null,
         valores: {
           total: vNF || null,
           produtos: vProd || null,
           desconto: vDesc || null,
           frete: vFrete || null,
-          outros: vOutro || null
+          outros: vOutro || null,
+          xml_path: xmlPath
         }
       };
 
-      // upsert (usar ON CONFLICT em supabase: insert + onConflict + ignore=merge)
-      // supabase-js v2: upsert(table, payload, { onConflict })
       const { error } = await supabase
         .from("nfe_data")
         .upsert(payload, { onConflict: "chave_acesso" });
-
       if (error) throw error;
 
-      setResultado(`NFe ${numero}/${serie} (chave ${chave}) importada/atualizada com sucesso.`);
+      setResultado(`NFe ${numero || "-"} / ${serie || "-"} (chave ${chave}) importada/atualizada com sucesso.`);
     } catch (err: any) {
       setResultado("Erro ao importar: " + err.message);
     } finally {
@@ -98,14 +116,14 @@ export default function ImportarNFe() {
       </div>
 
       <h1>Importar NFe (XML)</h1>
-      <p style={{ color: "#666" }}>Selecione um arquivo XML de NFe (modelo nacional). O sistema extrai a chave de acesso, número/série, data de emissão e valores totais.</p>
+      <p style={{ color: "#666" }}>Selecione o XML da NFe. O sistema extrai os campos principais, envia o XML ao Storage e grava/atualiza em <code>nfe_data</code>.</p>
 
       <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
         <input type="file" accept=".xml" onChange={onFile} />
         <button
           onClick={importar}
           disabled={!file || busy}
-          style={{ background: "#111", color: "white", borderRadius: 8, padding: "10px 14px", border: "none", cursor: "pointer", width: 200 }}
+          style={{ background: "#111", color: "white", borderRadius: 8, padding: "10px 14px", border: "none", cursor: "pointer", width: 220 }}
         >
           {busy ? "Importando..." : "Importar XML"}
         </button>
