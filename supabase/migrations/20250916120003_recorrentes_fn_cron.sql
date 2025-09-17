@@ -168,4 +168,17 @@ BEGIN
   BEGIN
     PERFORM cron.schedule(
       'financeirolb_recorrentes_mensal',
-      '10 0
+      '10 0 1 * *',
+      $cmd$SELECT public.gerar_recorrentes(EXTRACT(YEAR FROM CURRENT_DATE)::int,
+                                           EXTRACT(MONTH FROM CURRENT_DATE)::int)$cmd$
+    );
+  EXCEPTION
+    WHEN undefined_function OR invalid_schema_name OR undefined_table OR duplicate_function OR unique_violation THEN
+      -- sem pg_cron ou job já criado: ok
+      NULL;
+    WHEN OTHERS THEN
+      -- qualquer outro erro: não travar migration
+      NULL;
+  END;
+END
+$job$;
