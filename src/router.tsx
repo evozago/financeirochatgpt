@@ -25,13 +25,22 @@ import ConciliarNFe from "./pages/nfe/ConciliarNFe";
 // DASHBOARD
 import ResumoMetas from "./pages/dashboards/ResumoMetas";
 
-// METAS
+// METAS/VENDAS
 import MetasList from "./pages/metas/MetasList";
 import MetaEditar from "./pages/metas/MetaEditar";
-
-// VENDAS
 import VendasList from "./pages/vendas/VendasList";
 import VendaEditar from "./pages/vendas/VendaEditar";
+
+// NOVOS (esqueleto)
+import PedidosList from "./pages/compras/PedidosList";
+import PedidoEditar from "./pages/compras/PedidoEditar";
+import FornecedoresList from "./pages/compras/FornecedoresList";
+
+import PessoasList from "./pages/cadastros/PessoasList";
+import EntidadesCorporativas from "./pages/corporativo/EntidadesCorporativas";
+
+import Relatorios from "./pages/sistema/Relatorios";
+import Configuracoes from "./pages/sistema/Configuracoes";
 
 // guard
 import Protected from "./routes/Protected";
@@ -40,7 +49,7 @@ export const router = createBrowserRouter([
   // pública
   { path: "/login", element: <Login /> },
 
-  // home -> ENTIDADES (mantenha assim ou aponte para outra seção que preferir)
+  // home -> ENTIDADES (ou mude para dashboards, se preferir)
   { path: "/", element: <Protected><ListarEntidades /></Protected> },
 
   // ENTIDADES
@@ -76,4 +85,20 @@ export const router = createBrowserRouter([
   { path: "/vendas", element: <Protected><VendasList /></Protected> },
   { path: "/vendas/nova", element: <Protected><VendaEditar /></Protected> },
   { path: "/vendas/:id", element: <Protected><VendaEditar /></Protected> },
+
+  // COMPRAS (esqueleto)
+  { path: "/compras/pedidos", element: <Protected><PedidosList /></Protected> },
+  { path: "/compras/pedidos/nova", element: <Protected><PedidoEditar /></Protected> },
+  { path: "/compras/pedidos/:id", element: <Protected><PedidoEditar /></Protected> },
+  { path: "/compras/fornecedores", element: <Protected><FornecedoresList /></Protected> },
+
+  // CADASTROS
+  { path: "/cadastros/pessoas", element: <Protected><PessoasList /></Protected> },
+
+  // SISTEMA CORPORATIVO
+  { path: "/corporativo/entidades", element: <Protected><EntidadesCorporativas /></Protected> },
+
+  // SISTEMA
+  { path: "/sistema/relatorios", element: <Protected><Relatorios /></Protected> },
+  { path: "/sistema/configuracoes", element: <Protected><Configuracoes /></Protected> },
 ]);
