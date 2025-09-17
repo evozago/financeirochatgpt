@@ -14,10 +14,13 @@ export default function VendaEditar() {
   const isEdit = !!id;
   const nav = useNavigate();
   const [saving, setSaving] = useState(false);
+  const [entidadeNome, setEntidadeNome] = useState<string>("");
+
+  const now = new Date();
   const [f, setF] = useState<FormState>({
     entidade_id: "",
-    ano: String(new Date().getFullYear()),
-    mes: String(new Date().getMonth() + 1),
+    ano: String(now.getFullYear()),
+    mes: String(now.getMonth() + 1),
     valor_vendido: "",
   });
 
@@ -39,6 +42,16 @@ export default function VendaEditar() {
     }
     load();
   }, [id, isEdit]);
+
+  useEffect(() => {
+    async function loadNome() {
+      const n = Number(f.entidade_id);
+      if (!n || Number.isNaN(n)) { setEntidadeNome(""); return; }
+      const { data } = await supabase.from("entidades").select("nome").eq("id", n).limit(1);
+      setEntidadeNome(data && data.length ? data[0].nome : "");
+    }
+    loadNome();
+  }, [f.entidade_id]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -83,15 +96,12 @@ export default function VendaEditar() {
       <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
         <Field label="Entidade (ID)">
           <input style={inp} value={f.entidade_id} onChange={(e) => onChange("entidade_id", e.target.value)} />
+          {entidadeNome && <div style={{ color: "#6b7280", fontSize: 12, marginTop: 4 }}>• {entidadeNome}</div>}
         </Field>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <Field label="Ano">
-            <input style={inp} value={f.ano} onChange={(e) => onChange("ano", e.target.value)} />
-          </Field>
-          <Field label="Mês (1-12)">
-            <input style={inp} value={f.mes} onChange={(e) => onChange("mes", e.target.value)} />
-          </Field>
+          <Field label="Ano"><input style={inp} value={f.ano} onChange={(e) => onChange("ano", e.target.value)} /></Field>
+          <Field label="Mês (1-12)"><input style={inp} value={f.mes} onChange={(e) => onChange("mes", e.target.value)} /></Field>
         </div>
 
         <Field label="Valor Vendido">
@@ -99,10 +109,7 @@ export default function VendaEditar() {
         </Field>
 
         <div>
-          <button
-            disabled={saving}
-            style={{ background: "#111", color: "white", borderRadius: 8, padding: "10px 14px", border: "none", cursor: "pointer" }}
-          >
+          <button disabled={saving} style={{ background: "#111", color: "white", borderRadius: 8, padding: "10px 14px", border: "none", cursor: "pointer" }}>
             {saving ? "Salvando..." : "Salvar"}
           </button>
         </div>
@@ -112,12 +119,7 @@ export default function VendaEditar() {
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div style={{ display: "grid", gap: 6 }}>
-      <label style={lbl}>{label}</label>
-      {children}
-    </div>
-  );
+  return <div style={{ display: "grid", gap: 6 }}><label style={lbl}>{label}</label>{children}</div>;
 }
 const lbl: React.CSSProperties = { fontSize: 14, fontWeight: 600 };
 const inp: React.CSSProperties = { border: "1px solid #ddd", borderRadius: 8, padding: 10, fontSize: 14 };
