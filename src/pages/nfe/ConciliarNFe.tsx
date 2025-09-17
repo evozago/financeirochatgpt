@@ -8,8 +8,8 @@ type NFePend = {
   numero: string | null;
   serie: string | null;
   data_emissao: string | null;
-  valores?: any;
   valor_total?: number | null;
+  valores?: any;
 };
 
 type NFeConc = {
@@ -30,6 +30,7 @@ export default function ConciliarNFe() {
   const [conciliadas, setConciliadas] = useState<NFeConc[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [res, setRes] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -48,23 +49,21 @@ export default function ConciliarNFe() {
       setLoading(false);
     }
   }
-
   useEffect(() => { load(); }, []);
 
   async function conciliarCriandoConta(chave: string) {
     try {
-      setBusy(chave);
-      // nossa função: fn_conciliar_nfe(p_chave text, p_conta_id bigint, p_criar_conta boolean)
-      const { error } = await supabase.rpc("fn_conciliar_nfe", {
-        p_chave: chave,
-        p_conta_id: null,
-        p_criar_conta: true,
+      setBusy(chave); setRes(null);
+      const { data, error } = await supabase.rpc("fn_conciliar_nfe", {
+        p_chave: chave, p_conta_id: null, p_criar_conta: true
       });
       if (error) throw error;
+
+      const r = normalizeReturn(data);
+      setRes(r.msg);
       await load();
-      alert("Conciliado criando conta automaticamente.");
     } catch (e: any) {
-      alert("Erro ao conciliar: " + e.message);
+      setRes("Erro: " + e.message);
     } finally {
       setBusy(null);
     }
@@ -77,17 +76,17 @@ export default function ConciliarNFe() {
     if (!contaId || Number.isNaN(contaId)) return alert("ID inválido.");
 
     try {
-      setBusy(chave);
-      const { error } = await supabase.rpc("fn_conciliar_nfe", {
-        p_chave: chave,
-        p_conta_id: contaId,
-        p_criar_conta: false,
+      setBusy(chave); setRes(null);
+      const { data, error } = await supabase.rpc("fn_conciliar_nfe", {
+        p_chave: chave, p_conta_id: contaId, p_criar_conta: false
       });
       if (error) throw error;
+
+      const r = normalizeReturn(data);
+      setRes(r.msg);
       await load();
-      alert("Conciliado na conta #" + contaId);
     } catch (e: any) {
-      alert("Erro ao conciliar: " + e.message);
+      setRes("Erro: " + e.message);
     } finally {
       setBusy(null);
     }
@@ -96,6 +95,8 @@ export default function ConciliarNFe() {
   return (
     <div style={{ padding: 24, fontFamily: "system-ui,-apple-system, Segoe UI, Roboto", maxWidth: 1200, margin: "0 auto" }}>
       <h1>Conciliação NFe</h1>
+      {res && <div style={{ marginBottom: 12, padding: 10, border: "1px solid #eee", borderRadius: 8 }}>{res}</div>}
+
       {loading ? <p>Carregando…</p> : (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           <section>
@@ -127,7 +128,7 @@ export default function ConciliarNFe() {
                           disabled={busy === r.chave_acesso}
                           onClick={() => conciliarCriandoConta(r.chave_acesso)}
                           style={btnBlue}
-                          title="Cria a conta e vincula esta NFe"
+                          title="Cria conta e vincula esta NFe"
                         >
                           {busy === r.chave_acesso ? "Processando…" : "Criar conta + conciliar"}
                         </button>
@@ -152,7 +153,7 @@ export default function ConciliarNFe() {
 
           <section>
             <h2>Conciliadas</h2>
-            <div style={{ overflowX: "auto", border: "1px solid #eee", borderRadius: 8 }}>
+            <div style={{ overflowX: "auto", border: "1px solid "#eee", borderRadius: 8 }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead style={{ background: "#fafafa" }}>
                   <tr>
@@ -168,9 +169,7 @@ export default function ConciliarNFe() {
                 <tbody>
                   {conciliadas.map((r) => (
                     <tr key={r.chave_acesso}>
-                      <td style={td} title={r.chave_acesso}>
-                        {r.chave_acesso.slice(0, 6)}…{r.chave_acesso.slice(-6)}
-                      </td>
+                      <td style={td} title={r.chave_acesso}>{r.chave_acesso.slice(0, 6)}…{r.chave_acesso.slice(-6)}</td>
                       <td style={td}>{(r.numero || "-") + "/" + (r.serie || "-")}</td>
                       <td style={td}>{r.data_emissao ?? "-"}</td>
                       <td style={td}>{r.emitente ?? "-"}</td>
@@ -192,9 +191,20 @@ export default function ConciliarNFe() {
   );
 }
 
+/* Helpers */
+function normalizeReturn(data: any) {
+  // Supabase RPC pode retornar array com 1 linha (ok,msg,conta_id)
+  const row = Array.isArray(data) ? data[0] : data;
+  const ok = !!row?.ok;
+  const msg = String(row?.msg ?? "");
+  const conta_id = row?.conta_id ?? null;
+  return { ok, msg, conta_id };
+}
 function fmtBRL(n: number) {
   return Number(n ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
+
+/* estilos */
 const th: React.CSSProperties = { textAlign: "left", padding: 10, borderBottom: "1px solid #eee", fontWeight: 600, fontSize: 13 };
 const td: React.CSSProperties = { padding: 10, borderBottom: "1px solid #f5f5f5", fontSize: 14 };
 const tdRight: React.CSSProperties = { ...td, textAlign: "right", whiteSpace: "nowrap" };
