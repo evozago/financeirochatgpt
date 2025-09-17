@@ -142,4 +142,5 @@ function fmtSize(n?: number) {
 
 const th: React.CSSProperties = { textAlign: "left", padding: 10, borderBottom: "1px solid #eee", fontWeight: 600, fontSize: 13, whiteSpace: "nowrap" };
 const td: React.CSSProperties = { padding: 10, borderBottom: "1px solid #f5f5f5", fontSize: 14, whiteSpace: "nowrap" };
-const tdRight: React.CSSProperties = { ...td, textAlign: "right" };
+const tdRight: React.CSSProperties = { ...td, textAlign: "right", whiteSpace: "nowrap" };
+const btnOutline: React.CSSProperties = { border: "1px solid #999", background: "transparent", color: "#333", padding: "6px 10px", borderRadius: 6, cursor: "pointer", marginLeft: 6 };
