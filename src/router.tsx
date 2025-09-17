@@ -11,13 +11,14 @@ import EditarEntidade from "./pages/entidades/EditarEntidade";
 import ContasLista from "./pages/financeiro/ContasLista";
 import ContaDetalhe from "./pages/financeiro/ContaDetalhe";
 import ContaNova from "./pages/financeiro/ContaNova";
+import ContaAnexos from "./pages/financeiro/ContaAnexos";
 
 // RECORRENTES
 import RecorrentesList from "./pages/recorrentes/RecorrentesList";
 import RecorrenteEditar from "./pages/recorrentes/RecorrenteEditar";
 import RecorrentesLog from "./pages/recorrentes/RecorrentesLog";
 
-// NFE
+// NFe
 import ImportarNFe from "./pages/nfe/ImportarNFe";
 import ConciliarNFe from "./pages/nfe/ConciliarNFe";
 
@@ -41,6 +42,7 @@ export const router = createBrowserRouter([
   { path: "/financeiro/contas", element: <Protected><ContasLista /></Protected> },
   { path: "/financeiro/contas/nova", element: <Protected><ContaNova /></Protected> },
   { path: "/financeiro/contas/:id", element: <Protected><ContaDetalhe /></Protected> },
+  { path: "/financeiro/contas/:id/anexos", element: <Protected><ContaAnexos /></Protected> },
 
   // RECORRENTES
   { path: "/recorrentes", element: <Protected><RecorrentesList /></Protected> },
