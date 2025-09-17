@@ -2,13 +2,6 @@ import { useState } from "react";
 import { supabase } from "../../supabaseClient";
 import { Link } from "react-router-dom";
 
-/**
- * ImportarNFe
- * - Lê um XML de NFe localmente (FileReader + DOMParser)
- * - Extrai: chave (44), número, série, modelo, data_emissao, emitente, destinatario, valor_total
- * - Faz upload do XML no Storage 'nfe-xml' em xml/<chave>.xml (private)
- * - Upsert em nfe_data (onConflict: chave_acesso)
- */
 export default function ImportarNFe() {
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
@@ -20,9 +13,10 @@ export default function ImportarNFe() {
     setResultado(null);
   }
 
+  const safe = (s: string) => (s ?? "").trim();
+
   async function importar() {
     if (!file) return alert("Selecione um arquivo XML da NFe");
-
     try {
       setBusy(true);
       setResultado(null);
@@ -35,40 +29,39 @@ export default function ImportarNFe() {
         (ctx ?? xml).getElementsByTagName(tag)[0]?.textContent || "";
       const num = (tag: string, ctx?: Element | Document) =>
         Number((get(tag, ctx) || "0").replace(",", "."));
-      const safe = (s: string) => (s ?? "").trim();
 
-      // chave de acesso (44)
+      // chave (44)
       let chave = safe(get("chNFe"));
       if (!chave) {
-        // alguns XML trazem no Id do infNFe: Id="NFe3519..."
         const infNFe = xml.getElementsByTagName("infNFe")[0];
         const id = infNFe?.getAttribute("Id") || "";
         if (id?.startsWith("NFe")) chave = id.slice(3);
       }
-      if (!chave || chave.length !== 44) throw new Error("Chave de acesso inválida (esperado 44 dígitos).");
+      if (!chave || chave.length !== 44) throw new Error("Chave de acesso inválida (44 dígitos).");
 
-      // dados principais
-      const nfe = xml.getElementsByTagName("NFe")[0] || xml;
-      const ide = xml.getElementsByTagName("ide")[0] || xml;
+      const ide  = xml.getElementsByTagName("ide")[0] || xml;
       const emit = xml.getElementsByTagName("emit")[0];
       const dest = xml.getElementsByTagName("dest")[0];
 
       const numero = safe(get("nNF", ide));
-      const serie = safe(get("serie", ide));
+      const serie  = safe(get("serie", ide));
       const modelo = safe(get("mod", ide));
+
       const dtEmi = safe(get("dhEmi", ide) || get("dEmi", ide));
       const data_emissao = dtEmi ? dtEmi.slice(0, 10) : null;
 
-      const emitente = safe(get("xNome", emit) || get("xFant", emit));
-      const destinatario = safe(get("xNome", dest) || get("xFant", dest));
+      const emitente      = safe(get("xNome", emit) || get("xFant", emit));
+      const cnpj_emitente = safe(get("CNPJ", emit));
+      const destinatario      = safe(get("xNome", dest) || get("xFant", dest));
+      const cnpj_destinatario = safe(get("CNPJ", dest));
 
-      const vNF   = num("vNF", xml);     // total da NFe
+      const vNF   = num("vNF", xml);
       const vProd = num("vProd", xml);
       const vDesc = num("vDesc", xml);
       const vFrete= num("vFrete", xml);
       const vOutro= num("vOutro", xml);
 
-      // Upload do XML no Storage (nfe-xml/xml/<chave>.xml) — sobrescreve (upsert)
+      // storage: xml/<chave>.xml
       const xmlPath = `xml/${chave}.xml`;
       const { error: upErr } = await supabase.storage.from("nfe-xml").upload(xmlPath, new Blob([xmlText], { type: "text/xml" }), {
         upsert: true,
@@ -76,7 +69,7 @@ export default function ImportarNFe() {
       });
       if (upErr && upErr.message && !upErr.message.includes("The resource already exists")) throw upErr;
 
-      // Upsert em nfe_data
+      // upsert em nfe_data (com CNPJs)
       const payload = {
         chave_acesso: chave,
         emitente: emitente || null,
@@ -86,6 +79,8 @@ export default function ImportarNFe() {
         modelo: modelo || null,
         data_emissao,
         valor_total: vNF || null,
+        cnpj_emitente: cnpj_emitente || null,
+        cnpj_destinatario: cnpj_destinatario || null,
         valores: {
           total: vNF || null,
           produtos: vProd || null,
@@ -96,14 +91,12 @@ export default function ImportarNFe() {
         }
       };
 
-      const { error } = await supabase
-        .from("nfe_data")
-        .upsert(payload, { onConflict: "chave_acesso" });
+      const { error } = await supabase.from("nfe_data").upsert(payload, { onConflict: "chave_acesso" });
       if (error) throw error;
 
-      setResultado(`NFe ${numero || "-"} / ${serie || "-"} (chave ${chave}) importada/atualizada com sucesso.`);
-    } catch (err: any) {
-      setResultado("Erro ao importar: " + err.message);
+      setResultado(`NFe ${numero || "-"} / ${serie || "-"} importada. Chave: ${chave}`);
+    } catch (e: any) {
+      setResultado("Erro ao importar: " + e.message);
     } finally {
       setBusy(false);
     }
@@ -114,26 +107,15 @@ export default function ImportarNFe() {
       <div style={{ marginBottom: 12 }}>
         <Link to="/nfe/conciliar">→ Ir para conciliação</Link>
       </div>
-
       <h1>Importar NFe (XML)</h1>
-      <p style={{ color: "#666" }}>Selecione o XML da NFe. O sistema extrai os campos principais, envia o XML ao Storage e grava/atualiza em <code>nfe_data</code>.</p>
-
+      <p style={{ color: "#666" }}>O sistema grava os CNPJs do emitente (fornecedor) e do destinatário (entidade) para conciliação automática.</p>
       <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
         <input type="file" accept=".xml" onChange={onFile} />
-        <button
-          onClick={importar}
-          disabled={!file || busy}
-          style={{ background: "#111", color: "white", borderRadius: 8, padding: "10px 14px", border: "none", cursor: "pointer", width: 220 }}
-        >
+        <button onClick={importar} disabled={!file || busy} style={{ background: "#111", color: "white", borderRadius: 8, padding: "10px 14px", border: "none", cursor: "pointer", width: 220 }}>
           {busy ? "Importando..." : "Importar XML"}
         </button>
       </div>
-
-      {resultado && (
-        <div style={{ marginTop: 16, padding: 12, border: "1px solid #eee", borderRadius: 8 }}>
-          {resultado}
-        </div>
-      )}
+      {resultado && <div style={{ marginTop: 16, padding: 12, border: "1px solid #eee", borderRadius: 8 }}>{resultado}</div>}
     </div>
   );
 }
