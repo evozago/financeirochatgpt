@@ -1,108 +1,115 @@
 import { createBrowserRouter } from "react-router-dom";
 
-// --- Públicas ---
+// públicas
 import Login from "./pages/Login";
 
-// --- ENTIDADES ---
+// layout e guard
+import Protected from "./routes/Protected";
+import AppLayout from "./components/layout/AppLayout";
+
+// ENTIDADES
 import ListarEntidades from "./pages/entidades/ListarEntidades";
 import EditarEntidade from "./pages/entidades/EditarEntidade";
 
-// --- AP (Contas a Pagar) ---
+// AP (Contas a Pagar)
 import ContasLista from "./pages/financeiro/ContasLista";
 import ContaDetalhe from "./pages/financeiro/ContaDetalhe";
 import ContaNova from "./pages/financeiro/ContaNova";
 import ContaAnexos from "./pages/financeiro/ContaAnexos";
 
-// --- RECORRENTES ---
+// RECORRENTES
 import RecorrentesList from "./pages/recorrentes/RecorrentesList";
 import RecorrenteEditar from "./pages/recorrentes/RecorrenteEditar";
 import RecorrentesLog from "./pages/recorrentes/RecorrentesLog";
 
-// --- NFE ---
+// NFE
 import ImportarNFe from "./pages/nfe/ImportarNFe";
 import ConciliarNFe from "./pages/nfe/ConciliarNFe";
 
-// --- DASHBOARDS ---
+// DASHBOARD
 import ResumoMetas from "./pages/dashboards/ResumoMetas";
 
-// --- METAS/VENDAS ---
+// METAS/VENDAS
 import MetasList from "./pages/metas/MetasList";
 import MetaEditar from "./pages/metas/MetaEditar";
 import VendasList from "./pages/vendas/VendasList";
 import VendaEditar from "./pages/vendas/VendaEditar";
 
-// --- COMPRAS (esqueleto) ---
+// NOVOS (esqueleto)
 import PedidosList from "./pages/compras/PedidosList";
 import PedidoEditar from "./pages/compras/PedidoEditar";
 import FornecedoresList from "./pages/compras/FornecedoresList";
 
-// --- CADASTROS ---
 import PessoasList from "./pages/cadastros/PessoasList";
-
-// --- SISTEMA CORPORATIVO ---
 import EntidadesCorporativas from "./pages/corporativo/EntidadesCorporativas";
 
-// --- SISTEMA ---
 import Relatorios from "./pages/sistema/Relatorios";
 import Configuracoes from "./pages/sistema/Configuracoes";
 
-// --- Guard ---
-import Protected from "./routes/Protected";
-
 export const router = createBrowserRouter([
-  // --- PÚBLICA ---
+  // rota pública
   { path: "/login", element: <Login /> },
 
-  // --- HOME (pode apontar para ENTIDADES ou DASHBOARD) ---
-  { path: "/", element: <Protected><ListarEntidades /></Protected> },
+  // ROTAS PROTEGIDAS (layout + children)
+  {
+    element: (
+      <Protected>
+        <AppLayout />
+      </Protected>
+    ),
+    children: [
+      // home
+      { path: "/", element: <ListarEntidades /> },
 
-  // --- ENTIDADES ---
-  { path: "/entidades", element: <Protected><ListarEntidades /></Protected> },
-  { path: "/entidades/nova", element: <Protected><EditarEntidade mode="create" /></Protected> },
-  { path: "/entidades/:id", element: <Protected><EditarEntidade mode="edit" /></Protected> },
+      // ENTIDADES
+      { path: "/entidades", element: <ListarEntidades /> },
+      { path: "/entidades/nova", element: <EditarEntidade mode="create" /> },
+      { path: "/entidades/:id", element: <EditarEntidade mode="edit" /> },
 
-  // --- CONTAS A PAGAR ---
-  { path: "/financeiro/contas", element: <Protected><ContasLista /></Protected> },
-  { path: "/financeiro/contas/nova", element: <Protected><ContaNova /></Protected> },
-  { path: "/financeiro/contas/:id", element: <Protected><ContaDetalhe /></Protected> },
-  { path: "/financeiro/contas/:id/anexos", element: <Protected><ContaAnexos /></Protected> },
+      // CONTAS A PAGAR
+      { path: "/financeiro/contas", element: <ContasLista /> },
+      { path: "/financeiro/contas/nova", element: <ContaNova /> },
+      { path: "/financeiro/contas/:id", element: <ContaDetalhe /> },
+      { path: "/financeiro/contas/:id/anexos", element: <ContaAnexos /> },
 
-  // --- RECORRENTES ---
-  { path: "/recorrentes", element: <Protected><RecorrentesList /></Protected> },
-  { path: "/recorrentes/nova", element: <Protected><RecorrenteEditar /></Protected> },
-  { path: "/recorrentes/:id", element: <Protected><RecorrenteEditar /></Protected> },
-  { path: "/recorrentes/log", element: <Protected><RecorrentesLog /></Protected> },
+      // RECORRENTES
+      { path: "/recorrentes", element: <RecorrentesList /> },
+      { path: "/recorrentes/nova", element: <RecorrenteEditar /> },
+      { path: "/recorrentes/:id", element: <RecorrenteEditar /> },
+      { path: "/recorrentes/log", element: <RecorrentesLog /> },
 
-  // --- NFE ---
-  { path: "/nfe/importar", element: <Protected><ImportarNFe /></Protected> },
-  { path: "/nfe/conciliar", element: <Protected><ConciliarNFe /></Protected> },
+      // NFE
+      { path: "/nfe/importar", element: <ImportarNFe /> },
+      { path: "/nfe/conciliar", element: <ConciliarNFe /> },
 
-  // --- DASHBOARDS ---
-  { path: "/dashboards", element: <Protected><ResumoMetas /></Protected> },
+      // DASHBOARDS
+      { path: "/dashboards", element: <ResumoMetas /> },
 
-  // --- METAS ---
-  { path: "/metas", element: <Protected><MetasList /></Protected> },
-  { path: "/metas/nova", element: <Protected><MetaEditar /></Protected> },
-  { path: "/metas/:id", element: <Protected><MetaEditar /></Protected> },
+      // METAS
+      { path: "/metas", element: <MetasList /> },
+      { path: "/metas/nova", element: <MetaEditar /> },
+      { path: "/metas/:id", element: <MetaEditar /> },
 
-  // --- VENDAS ---
-  { path: "/vendas", element: <Protected><VendasList /></Protected> },
-  { path: "/vendas/nova", element: <Protected><VendaEditar /></Protected> },
-  { path: "/vendas/:id", element: <Protected><VendaEditar /></Protected> },
+      // VENDAS
+      { path: "/vendas", element: <VendasList /> },
+      { path: "/vendas/nova", element: <VendaEditar /> },
+      { path: "/vendas/:id", element: <VendaEditar /> },
 
-  // --- COMPRAS ---
-  { path: "/compras/pedidos", element: <Protected><PedidosList /></Protected> },
-  { path: "/compras/pedidos/nova", element: <Protected><PedidoEditar /></Protected> },
-  { path: "/compras/pedidos/:id", element: <Protected><PedidoEditar /></Protected> },
-  { path: "/compras/fornecedores", element: <Protected><FornecedoresList /></Protected> },
+      // COMPRAS (esqueleto)
+      { path: "/compras/pedidos", element: <PedidosList /> },
+      { path: "/compras/pedidos/nova", element: <PedidoEditar /> },
+      { path: "/compras/pedidos/:id", element: <PedidoEditar /> },
+      { path: "/compras/fornecedores", element: <FornecedoresList /> },
 
-  // --- CADASTROS ---
-  { path: "/cadastros/pessoas", element: <Protected><PessoasList /></Protected> },
+      // CADASTROS
+      { path: "/cadastros/pessoas", element: <PessoasList /> },
 
-  // --- SISTEMA CORPORATIVO ---
-  { path: "/corporativo/entidades", element: <Protected><EntidadesCorporativas /></Protected> },
+      // SISTEMA CORPORATIVO
+      { path: "/corporativo/entidades", element: <EntidadesCorporativas /> },
 
-  // --- SISTEMA ---
-  { path: "/sistema/relatorios", element: <Protected><Relatorios /></Protected> },
-  { path: "/sistema/configuracoes", element: <Protected><Configuracoes /></Protected> },
+      // SISTEMA
+      { path: "/sistema/relatorios", element: <Relatorios /> },
+      { path: "/sistema/configuracoes", element: <Configuracoes /> },
+    ],
+  },
 ]);
